@@ -7,13 +7,13 @@ use crate::{string::UiString, toggles::PreviewMode};
 
 use glifparser::outline::skia::ToSkiaPaths;
 use glifparser::{
-    glif::{LayerOperation, MFEKPointData},
-    MFEKGlif,
+    glif::LayerOperation,
+    MFEKGlif, PointData
 };
 use skulpin::skia_bindings::SkPath;
 use skulpin::skia_safe::{Canvas, Color4f, Handle, Paint, PaintStyle, Path, PathOp, Rect};
 
-pub fn draw_components(glyph: &MFEKGlif<MFEKPointData>, viewport: &Viewport, canvas: &mut Canvas) {
+pub fn draw_components<PD: PointData>(glyph: &MFEKGlif<PD>, viewport: &Viewport, canvas: &mut Canvas) {
     let mut paint = Paint::default();
     paint.set_anti_alias(true);
     paint.set_color(OUTLINE_STROKE);
@@ -86,7 +86,7 @@ pub fn draw_layer_group(
 //TODO: pub use crate::events::vws;
 // Before we draw we've got to build a flattened path out of the glyph by resolving
 // each layer operation in turn.
-pub fn draw(canvas: &mut Canvas, glyph: &MFEKGlif<MFEKPointData>, viewport: &Viewport) {
+pub fn draw<PD: PointData>(canvas: &mut Canvas, glyph: &MFEKGlif<PD>, viewport: &Viewport) {
     let mut total_open_path = Path::new();
     let mut total_closed_path = Path::new();
     let mut total_outline_path = Path::new();

@@ -3,17 +3,16 @@ use super::points::calc::{calc_x, calc_y};
 use super::string::UiString;
 use crate::viewport::Viewport;
 
-use glifparser::glif::MFEKPointData;
-use glifparser::{Anchor, MFEKGlif};
+use glifparser::{Anchor, glif::MFEKGlif, PointData};
 use skulpin::skia_safe::{Canvas, Paint, PaintStyle, Path as SkPath};
 
-pub fn draw_anchors(glyph: &MFEKGlif<MFEKPointData>, viewport: &Viewport, canvas: &mut Canvas) {
+pub fn draw_anchors<PD: PointData>(glyph: &MFEKGlif<PD>, viewport: &Viewport, canvas: &mut Canvas) {
     for anchor in &glyph.anchors {
         draw_anchor(&anchor, viewport, canvas);
     }
 }
 
-fn draw_anchor(anchor: &Anchor, viewport: &Viewport, canvas: &mut Canvas) {
+fn draw_anchor<PD: PointData>(anchor: &Anchor<PD>, viewport: &Viewport, canvas: &mut Canvas) {
     let mut path = SkPath::new();
     let (x, y) = (calc_x(anchor.x), calc_y(anchor.y));
     let radius = ANCHOR_RADIUS * (1. / viewport.factor);

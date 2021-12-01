@@ -7,9 +7,15 @@ pub struct Viewport {
     pub factor: f32,
     pub offset: (f32, f32),
     pub dpi: f64,
+    pub matrix: Matrix,
     pub point_labels: PointLabels,
     pub handle_style: HandleStyle,
     pub preview_mode: PreviewMode,
+    // We need a recalculated offset due to an unavoidable OS WM event that made our state
+    // untrustworthy. (Maximize, resize, etc.)
+    // You should check this flag in your render loop and clear it if set. If set, call rebuild()
+    // before relying on this Viewport.
+    broken: bool,
 }
 
 impl Default for Viewport {
@@ -19,6 +25,8 @@ impl Default for Viewport {
             factor: 1.,
             offset: (0., 0.),
             dpi: 1.,
+            broken: false,
+            matrix: Matrix::new_identity(),
             point_labels: PointLabels::None,
             preview_mode: PreviewMode::None,
             handle_style: HandleStyle::Handlebars,
@@ -26,6 +34,7 @@ impl Default for Viewport {
     }
 }
 
+// this impl is for flags & boilerplate
 impl Viewport {
     pub fn with_winsize(mut self, winsize: (f32, f32)) -> Self {
         self.winsize = winsize;
@@ -55,16 +64,69 @@ impl Viewport {
         self.preview_mode = preview_mode;
         self
     }
+    pub fn is_broken(&self) -> bool {
+        self.broken
+    }
 }
 
-pub fn redraw_viewport(view: &Viewport, canvas: &mut Canvas) {
-    let mut matrix = Matrix::new_identity();
-    let now_matrix = canvas.local_to_device_as_3x3();
-    let trans_p = now_matrix.map_point(view.offset);
-
-    matrix.set_scale_translate((view.factor, view.factor), trans_p);
-
-    if matrix != now_matrix {
-        canvas.set_matrix(&matrix.into());
+// this impl contains the important stuff
+impl Viewport {
+    /// It may be useful to tag this viewport for rebuilding from the OS, just based on what Skia
+    /// knows about the canvas and its matrix, but sometimes you may not have the canvas in scope—
+    /// especially during window resize events. This allows you to tag the canvas as needed to be
+    /// rebuilt next frame / next use if not used in all frames. Use sparingly, for API logic, not
+    /// unsettable once set w/o going through ``Viewport::redraw``.
+    pub fn set_broken_flag(&mut self) {
+        self.broken = true;
+    }
+    pub fn refresh_from_backing_canvas(&mut self, canvas: &Canvas) -> Result<Matrix, ()> {
+        let matrix = canvas.local_to_device_as_3x3(); // used to be total_matrix()
+        debug_assert!(!matrix.has_perspective());
+        debug_assert!(matrix.rect_stays_rect());
+        debug_assert!(matrix.is_finite());
+        let factor = matrix.scale_x();
+        let offset = matrix.map_xy(self.offset.0, self.offset.1);
+        self.factor = factor;
+        self.offset = (offset.x, offset.y);
+        log::trace!("Matrix before refresh was {:?}…", &matrix);
+        self.rebuild(None);
+        log::trace!("And after ’twas {:?}.", &self.matrix);
+        let new_matrix = canvas.local_to_device_as_3x3(); // used to be total_matrix()
+                                                          //debug_assert_eq!(new_matrix.scale_x(), -new_matrix.scale_y());
+        log::debug!("{:?}", new_matrix.map_xy(0., 5.));
+        new_matrix
+            .invert()
+            .map(|inm| Ok(Matrix::concat(&matrix, &inm)))
+            .unwrap_or(Err(()))
+    }
+    pub fn as_device_matrix(&self) -> Matrix {
+        *(Matrix::default().set_scale_translate(
+            (self.factor, -self.factor),
+            (self.offset.0, self.winsize.1 - -self.offset.1),
+        ))
+    }
+    fn rebuild(&mut self, matrix: Option<Matrix>) {
+        let dmatrix = self.as_device_matrix();
+        let matrix = Matrix::concat(
+            &if let Some(m) = matrix {
+                m
+            } else {
+                Matrix::new_identity()
+            },
+            &dmatrix,
+        );
+        self.matrix = matrix;
+        self.broken = false;
+    }
+    pub fn redraw(&mut self, canvas: &mut Canvas) {
+        if self.broken {
+            let diff = self.refresh_from_backing_canvas(canvas);
+            log::debug!(
+                "Refreshed canvas’s matrix from backing store in redraw(…), getting diff {:?}",
+                diff
+            );
+        }
+        self.rebuild(None);
+        canvas.set_matrix(&self.matrix.into());
     }
 }

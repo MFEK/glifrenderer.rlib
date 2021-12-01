@@ -1,4 +1,4 @@
-use glifparser::glif::{Layer, MFEKPointData};
+use glifparser::glif::Layer;
 use glifparser::outline::skia::ToSkiaPath;
 use skulpin::skia_safe::{
     Canvas, ContourMeasureIter, Matrix, Paint, PaintStyle, Path as SkPath, Point as SkPoint,
@@ -70,7 +70,7 @@ fn get_fill_and_stroke(kind: UIPointType, selected: bool) -> (Color, Color) {
     (fill, stroke)
 }
 
-pub fn draw_directions(viewport: &Viewport, layer: &Layer<MFEKPointData>, canvas: &mut Canvas) {
+pub fn draw_directions<PD: GPPointData>(viewport: &Viewport, layer: &Layer<PD>, canvas: &mut Canvas) {
     for c in &layer.outline {
         drop(
             c.inner
@@ -332,8 +332,8 @@ pub fn draw_complete_point<PD: GPPointData>(
     );
 }
 
-pub fn draw_all(
-    glyph: &MFEKGlif<MFEKPointData>,
+pub fn draw_all<PD: GPPointData>(
+    glyph: &MFEKGlif<PD>,
     viewport: &Viewport,
     active_layer: usize,
     vcidx: Option<usize>,

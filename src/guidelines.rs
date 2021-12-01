@@ -1,94 +1,115 @@
+use crate::string::{self, UiString};
 use crate::viewport::Viewport;
 
 use super::constants::*;
 use super::points::calc::*;
-use glifparser::glif::MFEKPointData;
-use skulpin::skia_safe::{Canvas, Color, Paint, PaintStyle, Path};
 
-use glifparser::{Guideline, GuidelinePoint};
-use glifparser::{IntegerOrFloat, MFEKGlif};
+use MFEKmath::rect::FlipIfRequired as _;
 
-pub fn draw_guideline(
+use flo_curves as flo;
+use glifparser::{Guideline, GuidelinePoint, IntegerOrFloat};
+use kurbo;
+use skulpin::skia_safe::{self as skia, Canvas, Color, Paint, PaintStyle, Path};
+
+// This works by making four infinitely long lines at all edges of the viewport, then considering a
+// guideline, also of infinite length, finding where it intersects with all edges, and drawing it.
+pub fn draw_guideline<PD: glifparser::PointData>(
     viewport: &Viewport,
     canvas: &mut Canvas,
-    guideline: &Guideline,
+    guideline: &Guideline<PD>,
     color: Option<u32>,
 ) {
-    let angle = guideline.angle * DEGREES_IN_RADIANS;
-    let _extra = (
-        viewport.offset.0 * (1. / viewport.factor),
-        viewport.offset.1 * (1. / viewport.factor),
-    );
-    let at2 = GuidelinePoint {
-        x: guideline.at.x + ((1000. * viewport.winsize.0 as f32) * f32::from(angle).cos()),
-        y: guideline.at.y + ((1000. * viewport.winsize.1 as f32) * f32::from(angle).sin()),
-    };
-    let at3 = GuidelinePoint {
-        x: guideline.at.x + ((-(1000. * viewport.winsize.0 as f32)) * f32::from(angle).cos()),
-        y: guideline.at.y + ((-(1000. * viewport.winsize.1 as f32)) * f32::from(angle).sin()),
-    };
     let factor = viewport.factor;
+    let mut sk_c_bounds = canvas.local_clip_bounds().unwrap();
+    sk_c_bounds.flip_if_required();
+    let origin = skia::Point::new(sk_c_bounds.left, sk_c_bounds.bottom);
+
+    let angle = f64::from(guideline.angle).to_radians();
+    let angle_vec = kurbo::Vec2::from_angle(angle);
+    let mut window_rect: skia::Rect = skia::Rect::from(canvas.local_clip_bounds().unwrap());
+    window_rect.flip_if_required();
+
+    // flo_curves calls lines just tuples of its Coord2's. In certain functions these are
+    // considered infinite lines, not line segments
+    let top_line = (flo::geo::Coord2::from((window_rect.left(), window_rect.top())), flo::geo::Coord2::from((window_rect.right(), window_rect.top())));
+    let bottom_line = (flo::geo::Coord2::from((window_rect.left(), window_rect.bottom())), flo::geo::Coord2::from((window_rect.right(), window_rect.bottom())));
+    let left_line = (flo::geo::Coord2::from((window_rect.left(), window_rect.top())), flo::geo::Coord2::from((window_rect.left(), window_rect.bottom())));
+    let right_line = (flo::geo::Coord2::from((window_rect.right(), window_rect.top())), flo::geo::Coord2::from((window_rect.right(), window_rect.bottom())));
+
+    // flo_curves-style line for current guideline
+    let guideline_at = flo::geo::Coord2::from((calc_x(guideline.at.x), calc_y(guideline.at.y)));
+    let guideline_ext = flo::geo::Coord2::from((guideline_at.0 + angle_vec.x, guideline_at.1 + angle_vec.y));
+    let guideline_as_line = (guideline_at, guideline_ext);
+
+    // flo_curves somewhat bizarrely calls maths infinite lines `rays` and maths line segments
+    // `lines`. perhaps 3d graphics influenced its naming conventions? so a ray is not a ray, nor
+    // is a line a line.
+    let intersect_top = flo::line::line_intersects_ray(&top_line, &guideline_as_line);
+    let intersect_left = flo::line::line_intersects_ray(&left_line, &guideline_as_line);
+    let intersect_bottom = flo::line::line_intersects_ray(&bottom_line, &guideline_as_line);
+    let intersect_right = flo::line::line_intersects_ray(&right_line, &guideline_as_line);
+
+    let mut intersections = vec![];
+    for intersection in [intersect_bottom, intersect_top, intersect_right, intersect_left] {
+        if let Some(rir) = intersection {
+            intersections.push(rir);
+        }
+    }
+
+    // when guideline is on screen
+    let (at2, at3) = if intersections.len() >= 2 {
+        (
+            GuidelinePoint { x: intersections[0].0 as f32, y: intersections[0].1 as f32 },
+            GuidelinePoint { x: intersections[1].0 as f32, y: intersections[1].1 as f32 }
+        )
+    } else { // when it's not
+        return
+    };
+
     let mut path = Path::new();
-    path.move_to((calc_x(at2.x), calc_y(at2.y)));
-    path.line_to((calc_x(at3.x), calc_y(at3.y)));
+    path.move_to(((at2.x), (at2.y)));
+    path.line_to(((at3.x), (at3.y)));
     let mut paint = Paint::default();
     paint.set_anti_alias(true);
-    let color = color
-        .map(|c| Color::from(c))
-        .unwrap_or(Color::from(LBEARING_STROKE));
-    paint.set_color(color);
+    let color = color.unwrap_or(GUIDELINE_STROKE);
+    let scolor = Color::from(color);
+    paint.set_color(scolor);
     paint.set_stroke_width(GUIDELINE_THICKNESS * (1. / factor));
     paint.set_style(PaintStyle::Stroke);
     canvas.draw_path(&path, &paint);
+    if let Some(ref name) = guideline.name {
+        let mut at = at2;
+        // Our bottom is their top because we're -1 y flipped compared (only matters for baselines)
+        let vcenter = if intersect_bottom.is_some() {
+            string::VerticalAlignment::Top
+        } else { // we only want this to trigger if not at top on purpose
+            string::VerticalAlignment::Bottom
+        };
+        // This implements the sliding guideline labels along 0° angled guidelines
+        let alignment = if angle == 0. && -origin.x <= window_rect.width()  {
+            let origin_offset = 2.5; // offset from origin of label
+            if origin.x >= 0. {
+                at.x = origin.x + origin_offset;
+                string::Alignment::Left
+            } else {
+                at.x = origin_offset;
+                string::Alignment::Left
+            }
+        // Otherwise it uses some sane defaults
+        } else {
+            at.x -= 5. * (1. / factor);
+            string::Alignment::Right
+        };
+        UiString::with_colors(name, color, None).autosized(string::AutoSizeMode::OnlySmaller).padding(1.).alignment(alignment).vcenter(vcenter).draw(&viewport, at.into(), canvas);
+    }
 }
 
-pub fn draw_lbearing(viewport: &Viewport, canvas: &mut Canvas) {
-    draw_guideline(
-        viewport,
-        canvas,
-        &Guideline::from_x_y_angle(0., 0., IntegerOrFloat::Float(90.)),
-        Some(LBEARING_STROKE),
-    );
-}
-
-pub fn draw_rbearing(viewport: &Viewport, width: u64, canvas: &mut Canvas) {
-    draw_guideline(
-        viewport,
-        canvas,
-        &Guideline::from_x_y_angle(width as f32, 0., IntegerOrFloat::Float(90.)),
-        Some(RBEARING_STROKE),
-    );
-}
-
-pub fn draw_baseline(viewport: &Viewport, canvas: &mut Canvas) {
-    draw_guideline(
+/// Convenience function for drawing the baseline.
+pub fn draw_baseline<PD: glifparser::PointData>(viewport: &Viewport, canvas: &mut Canvas) {
+    draw_guideline::<PD>(
         viewport,
         canvas,
         &Guideline::from_x_y_angle(0., 0., IntegerOrFloat::Float(0.)),
-        None,
+        Some(BASELINE_STROKE),
     );
-}
-
-pub fn draw_all(glyph: &MFEKGlif<MFEKPointData>, viewport: &Viewport, canvas: &mut Canvas) {
-    draw_lbearing(viewport, canvas);
-    match glyph.width {
-        Some(w) => draw_rbearing(viewport, w, canvas),
-        None => {}
-    }
-    draw_baseline(viewport, canvas);
-
-    // These draw guidelines defined in the specific glyph, if any.
-    // e.g., in a multi-script font, the Hebrew glyphs may define a "Hebrew x-height",
-    // which would be different than the Latin x-height.
-    for guideline in &glyph.guidelines {
-        draw_guideline(viewport, canvas, guideline, None);
-    }
-
-    // These draw the UFO-global guidelines. This includes always (in a valid UFO) ascender and
-    // descender, but in a single-script font, like for example a Latin-only font, may include
-    // user-defined guidelines like x-height, cap-height, "digit height", etc., which are not
-    // meaningful to the output format.
-    for guideline in &glyph.guidelines {
-        draw_guideline(viewport, canvas, guideline, Some(UFO_GUIDELINE_STROKE));
-    }
 }

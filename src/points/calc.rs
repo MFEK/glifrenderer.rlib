@@ -3,9 +3,9 @@ pub fn calc_x(x: f32) -> f32 {
 }
 // Glif format y is flipped according to Skia
 pub fn calc_y(y: f32) -> f32 {
-    800. + (y * -1.)
+    y
 }
 
 pub fn rcalc_y(y: f32) -> f32 {
-    (y - 800.) * -1.
+    y
 }
