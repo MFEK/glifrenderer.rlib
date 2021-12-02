@@ -1,20 +1,22 @@
 use crate::toggles::{HandleStyle, PointLabels, PreviewMode};
 use skulpin::skia_safe::{Canvas, Matrix};
 
+/// This structure represents the current viewport without requiring a reference to the Skia
+/// canvas.
 #[derive(Clone, Debug)]
 pub struct Viewport {
     pub winsize: (f32, f32),
     pub factor: f32,
     pub offset: (f32, f32),
-    pub dpi: f64,
+    //pub dpi: f64,
     pub matrix: Matrix,
     pub point_labels: PointLabels,
     pub handle_style: HandleStyle,
     pub preview_mode: PreviewMode,
-    // We need a recalculated offset due to an unavoidable OS WM event that made our state
-    // untrustworthy. (Maximize, resize, etc.)
-    // You should check this flag in your render loop and clear it if set. If set, call rebuild()
-    // before relying on this Viewport.
+    /// We need a recalculated offset due to an unavoidable OS WM event that made our state
+    /// untrustworthy. (Maximize, resize, etc.)
+    /// You should check this flag in your render loop and clear it if set. If set, call rebuild()
+    /// before relying on this Viewport.
     broken: bool,
 }
 
@@ -24,7 +26,7 @@ impl Default for Viewport {
             winsize: (0., 0.),
             factor: 1.,
             offset: (0., 0.),
-            dpi: 1.,
+            //dpi: 1.,
             broken: false,
             matrix: Matrix::new_identity(),
             point_labels: PointLabels::None,
@@ -48,10 +50,10 @@ impl Viewport {
         self.offset = offset;
         self
     }
-    pub fn with_dpi(mut self, dpi: f64) -> Self {
+    /*pub fn with_dpi(mut self, dpi: f64) -> Self {
         self.dpi = dpi;
         self
-    }
+    }*/
     pub fn with_point_labels(mut self, point_labels: PointLabels) -> Self {
         self.point_labels = point_labels;
         self
@@ -84,16 +86,12 @@ impl Viewport {
         debug_assert!(!matrix.has_perspective());
         debug_assert!(matrix.rect_stays_rect());
         debug_assert!(matrix.is_finite());
-        let factor = matrix.scale_x();
         let offset = matrix.map_xy(self.offset.0, self.offset.1);
-        self.factor = factor;
         self.offset = (offset.x, offset.y);
         log::trace!("Matrix before refresh was {:?}…", &matrix);
         self.rebuild(None);
         log::trace!("And after ’twas {:?}.", &self.matrix);
         let new_matrix = canvas.local_to_device_as_3x3(); // used to be total_matrix()
-                                                          //debug_assert_eq!(new_matrix.scale_x(), -new_matrix.scale_y());
-        log::debug!("{:?}", new_matrix.map_xy(0., 5.));
         new_matrix
             .invert()
             .map(|inm| Ok(Matrix::concat(&matrix, &inm)))
@@ -122,9 +120,13 @@ impl Viewport {
         if self.broken {
             let diff = self.refresh_from_backing_canvas(canvas);
             log::debug!(
-                "Refreshed canvas’s matrix from backing store in redraw(…), getting diff {:?}",
+                "Refreshed canvas’s matrix from backing store in redraw(…), diff was {:?}",
                 diff
             );
+            match diff {
+                Ok(diff) => debug_assert_eq!(&diff, Matrix::i()),
+                Err(()) => log::error!("Failed to refresh viewport from backing canvas, viewport will reset!"),
+            }
         }
         self.rebuild(None);
         canvas.set_matrix(&self.matrix.into());

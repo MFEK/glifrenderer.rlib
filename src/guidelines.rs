@@ -13,12 +13,13 @@ use skulpin::skia_safe::{self as skia, Canvas, Color, Paint, PaintStyle, Path};
 
 // This works by making four infinitely long lines at all edges of the viewport, then considering a
 // guideline, also of infinite length, finding where it intersects with all edges, and drawing it.
-pub fn draw_guideline<PD: glifparser::PointData>(
+pub(crate) fn draw_guideline_impl<PD: glifparser::PointData>(
     viewport: &Viewport,
     canvas: &mut Canvas,
     guideline: &Guideline<PD>,
     color: Option<u32>,
-) {
+    width: f32,
+) -> Path {
     let factor = viewport.factor;
     let mut sk_c_bounds = canvas.local_clip_bounds().unwrap();
     sk_c_bounds.flip_if_required();
@@ -63,20 +64,12 @@ pub fn draw_guideline<PD: glifparser::PointData>(
             GuidelinePoint { x: intersections[1].0 as f32, y: intersections[1].1 as f32 }
         )
     } else { // when it's not
-        return
+        return Path::new()
     };
 
     let mut path = Path::new();
     path.move_to(((at2.x), (at2.y)));
     path.line_to(((at3.x), (at3.y)));
-    let mut paint = Paint::default();
-    paint.set_anti_alias(true);
-    let color = color.unwrap_or(GUIDELINE_STROKE);
-    let scolor = Color::from(color);
-    paint.set_color(scolor);
-    paint.set_stroke_width(GUIDELINE_THICKNESS * (1. / factor));
-    paint.set_style(PaintStyle::Stroke);
-    canvas.draw_path(&path, &paint);
     if let Some(ref name) = guideline.name {
         let mut at = at2;
         // Our bottom is their top because we're -1 y flipped compared (only matters for baselines)
@@ -100,8 +93,26 @@ pub fn draw_guideline<PD: glifparser::PointData>(
             at.x -= 5. * (1. / factor);
             string::Alignment::Right
         };
-        UiString::with_colors(name, color, None).autosized(string::AutoSizeMode::OnlySmaller).padding(1.).alignment(alignment).vcenter(vcenter).draw(&viewport, at.into(), canvas);
+        UiString::with_colors(name, color.unwrap_or(GUIDELINE_STROKE), None).autosized(string::AutoSizeMode::OnlySmaller).padding(1.).alignment(alignment).vcenter(vcenter).draw(&viewport, at.into(), canvas);
     }
+    path
+}
+
+pub fn draw_guideline<PD: glifparser::PointData>(
+    viewport: &Viewport,
+    canvas: &mut Canvas,
+    guideline: &Guideline<PD>,
+    color: Option<u32>,
+) {
+    let path = draw_guideline_impl(viewport, canvas, guideline, color, GUIDELINE_THICKNESS);
+    let mut paint = Paint::default();
+    paint.set_anti_alias(true);
+    let color = color.unwrap_or(GUIDELINE_STROKE);
+    let scolor = Color::from(color);
+    paint.set_color(scolor);
+    paint.set_stroke_width(GUIDELINE_THICKNESS * (1. / viewport.factor));
+    paint.set_style(PaintStyle::Stroke);
+    canvas.draw_path(&path, &paint);
 }
 
 /// Convenience function for drawing the baseline.

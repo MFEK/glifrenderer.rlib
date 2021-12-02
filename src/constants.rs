@@ -6,6 +6,7 @@ use std::f32::consts::PI;
 /* Sizes */
 pub static OUTLINE_STROKE_THICKNESS: f32 = 1.5 * PEN_SIZE;
 pub static GUIDELINE_THICKNESS: f32 = OUTLINE_STROKE_THICKNESS;
+pub static GRID_THICKNESS: f32 = GUIDELINE_THICKNESS / 2. * PEN_SIZE;
 pub static POINT_STROKE_THICKNESS: f32 = 3. * PEN_SIZE;
 pub static DIRECTION_STROKE_THICKNESS: f32 = 2. * PEN_SIZE;
 pub static HANDLE_STROKE_THICKNESS: f32 = 2.5 * PEN_SIZE;
@@ -47,7 +48,7 @@ pub static GUIDELINE_STROKE: u32 = 0xff_7d7d7d;
 pub static LBEARING_STROKE: u32 = 0xff_000000;
 pub static RBEARING_STROKE: u32 = LBEARING_STROKE;
 pub static BASELINE_STROKE: u32 = LBEARING_STROKE;
-pub static GRID_STROKE: u32 = 0x99_7d7d7d;
+pub static GRID_STROKE: u32 = 0x99_007d7d;
 
 pub static UFO_GUIDELINE_STROKE: u32 = 0xaa_7d0000;
 
