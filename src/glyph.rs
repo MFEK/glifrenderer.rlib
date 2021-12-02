@@ -6,14 +6,15 @@ use crate::SKIA_POINT_TRANSFORMS;
 use crate::{string::UiString, toggles::PreviewMode};
 
 use glifparser::outline::skia::ToSkiaPaths;
-use glifparser::{
-    glif::LayerOperation,
-    MFEKGlif, PointData
-};
+use glifparser::{glif::LayerOperation, MFEKGlif, PointData};
 use skulpin::skia_bindings::SkPath;
 use skulpin::skia_safe::{Canvas, Color4f, Handle, Paint, PaintStyle, Path, PathOp, Rect};
 
-pub fn draw_components<PD: PointData>(glyph: &MFEKGlif<PD>, viewport: &Viewport, canvas: &mut Canvas) {
+pub fn draw_components<PD: PointData>(
+    glyph: &MFEKGlif<PD>,
+    viewport: &Viewport,
+    canvas: &mut Canvas,
+) {
     let mut paint = Paint::default();
     paint.set_anti_alias(true);
     paint.set_color(OUTLINE_STROKE);

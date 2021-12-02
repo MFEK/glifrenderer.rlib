@@ -125,7 +125,9 @@ impl Viewport {
             );
             match diff {
                 Ok(diff) => debug_assert_eq!(&diff, Matrix::i()),
-                Err(()) => log::error!("Failed to refresh viewport from backing canvas, viewport will reset!"),
+                Err(()) => log::error!(
+                    "Failed to refresh viewport from backing canvas, viewport will reset!"
+                ),
             }
         }
         self.rebuild(None);

@@ -70,7 +70,11 @@ fn get_fill_and_stroke(kind: UIPointType, selected: bool) -> (Color, Color) {
     (fill, stroke)
 }
 
-pub fn draw_directions<PD: GPPointData>(viewport: &Viewport, layer: &Layer<PD>, canvas: &mut Canvas) {
+pub fn draw_directions<PD: GPPointData>(
+    viewport: &Viewport,
+    layer: &Layer<PD>,
+    canvas: &mut Canvas,
+) {
     for c in &layer.outline {
         drop(
             c.inner

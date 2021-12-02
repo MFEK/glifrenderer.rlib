@@ -1,5 +1,7 @@
 use num_traits::Float;
-use skulpin::skia_safe::{Canvas, Font, FontMetrics, FontStyle, M44, Paint, Path, Rect, TextBlob, Typeface};
+use skulpin::skia_safe::{
+    Canvas, Font, FontMetrics, FontStyle, Paint, Path, Rect, TextBlob, Typeface, M44,
+};
 
 use crate::viewport::Viewport;
 use std::cell::RefCell;
@@ -12,7 +14,7 @@ pub static POINTFONTSIZE: f32 = 14.0;
 pub enum Alignment {
     Left,
     Right,
-    Center
+    Center,
 }
 
 pub struct UiString<'a> {
@@ -30,13 +32,13 @@ pub struct UiString<'a> {
 pub enum AutoSizeMode {
     Full,
     OnlySmaller,
-    None
+    None,
 }
 
 #[derive(PartialEq, Eq)]
 pub enum VerticalAlignment {
     Top,
-    Bottom
+    Bottom,
 }
 
 #[allow(dead_code)]
@@ -82,7 +84,6 @@ impl<'a> UiString<'a> {
         self.vcenter = vcenter;
         self
     }
-
 
     pub fn padding(mut self, padding: f32) -> Self {
         self.padding = Some(padding);
@@ -157,10 +158,7 @@ impl UiString<'_> {
             let font = match f {
                 Some(fon) => fon,
                 None => {
-                    hm.insert(
-                        size.integer_decode(),
-                        pointfont_from_size(size),
-                    );
+                    hm.insert(size.integer_decode(), pointfont_from_size(size));
                     hm.get(&size.integer_decode()).unwrap()
                 }
             };
@@ -194,7 +192,8 @@ impl UiString<'_> {
             } else {
                 self.size
             }
-        } else { // AutoSizeMode::None
+        } else {
+            // AutoSizeMode::None
             self.size
         };
 
@@ -228,7 +227,7 @@ impl UiString<'_> {
         match self.vcenter {
             VerticalAlignment::Top => {
                 at.y += padding + line_spacing;
-            },
+            }
             VerticalAlignment::Bottom => {
                 at.y -= padding;
                 at.y -= metrics.descent + metrics.leading;
@@ -238,7 +237,7 @@ impl UiString<'_> {
         let center = match self.centered {
             Alignment::Left => 0.,
             Alignment::Right => (rect.width()),
-            Alignment::Center => (rect.width() / 2.)
+            Alignment::Center => (rect.width() / 2.),
         };
 
         if let Some(bgcolor) = self.bgcolor {

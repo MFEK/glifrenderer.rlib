@@ -1,7 +1,7 @@
-use MFEKmath::rect::FlipIfRequired as _;
-use glifparser::{IntegerOrFloat::Float, Guideline};
+use glifparser::{Guideline, IntegerOrFloat::Float};
+use skia::{Canvas, Color, Paint, PaintStyle, Path};
 use skulpin::skia_safe as skia;
-use skia::{Canvas, Color, Path, Paint, PaintStyle};
+use MFEKmath::rect::FlipIfRequired as _;
 
 use crate::constants::{GRID_STROKE, GRID_THICKNESS};
 use crate::guidelines::draw_guideline_impl;
@@ -24,14 +24,19 @@ impl Default for Grid {
         let offset = 0.;
         let spacing = 30.;
         let slope = None;
-        Grid { offset, spacing, slope, show: false }
+        Grid {
+            offset,
+            spacing,
+            slope,
+            show: false,
+        }
     }
 }
 
 impl Grid {
     pub fn slope_degrees(&self) -> Option<f32> {
         if let Some(slope) = self.slope {
-            Some( (f32::to_degrees(f32::atan(slope)) * 10000.).round() / 10000. )
+            Some((f32::to_degrees(f32::atan(slope)) * 10000.).round() / 10000.)
         } else {
             None
         }
@@ -39,7 +44,9 @@ impl Grid {
 }
 
 pub fn draw(canvas: &mut Canvas, grid: &Grid, viewport: &Viewport) {
-    if !grid.show { return }
+    if !grid.show {
+        return;
+    }
 
     let mut path = Path::new();
     let mut paint = Paint::default();
@@ -68,34 +75,49 @@ pub fn draw(canvas: &mut Canvas, grid: &Grid, viewport: &Viewport) {
 
     // Draw vertical guidelines (based on viewport location)
     let left = (units_from_left + origin.x.floor()) as isize;
-    for i in (left .. left + winsize.0 as isize).step_by(grid.spacing as usize) {
-        let guideline = Guideline::<()>::from_x_y_angle((i as f32).floor() + grid.offset, grid.offset, Float(90.));
-        let ppath = draw_guideline_impl(viewport, canvas, &guideline, Some(GRID_STROKE), GRID_THICKNESS);
+    for i in (left..left + winsize.0 as isize).step_by(grid.spacing as usize) {
+        let guideline = Guideline::<()>::from_x_y_angle(
+            (i as f32).floor() + grid.offset,
+            grid.offset,
+            Float(90.),
+        );
+        let ppath = draw_guideline_impl(viewport, canvas, &guideline, Some(GRID_STROKE));
         path.add_path(&ppath, (0., 0.), None);
     }
 
     // Draw horizontal guidelines (based on viewport location)
     let top = (units_from_top + origin.y.floor()) as isize;
-    for i in (top .. top + winsize.1 as isize).step_by(grid.spacing as usize) {
-        let guideline = Guideline::<()>::from_x_y_angle(grid.offset, (i as f32).floor() + grid.offset, Float(0.));
-        let ppath = draw_guideline_impl(viewport, canvas, &guideline, Some(GRID_STROKE), GRID_THICKNESS);
+    for i in (top..top + winsize.1 as isize).step_by(grid.spacing as usize) {
+        let guideline = Guideline::<()>::from_x_y_angle(
+            grid.offset,
+            (i as f32).floor() + grid.offset,
+            Float(0.),
+        );
+        let ppath = draw_guideline_impl(viewport, canvas, &guideline, Some(GRID_STROKE));
         path.add_path(&ppath, (0., 0.), None);
     }
 
-    let offset = dmatrix.map_origin();
-    let offset = (offset.x, offset.y);
-    let total_horizontal = f32::floor(viewport.winsize.1 as f32 / viewport.factor / grid.spacing) as i32;
+    let total_horizontal =
+        f32::floor(viewport.winsize.1 as f32 / viewport.factor / grid.spacing) as i32;
 
     // Draw italic guidelines (based on viewport size, but always origin-relative, so possible to
     // escape)
     if let Some(angle) = grid.slope_degrees() {
         let gslope = grid.slope.unwrap();
         let viewx = viewport.winsize.0 as f32 / viewport.factor;
-        let slope_max: f32 = if gslope < 0. { f32::min(-1., gslope) } else { f32::max(1., gslope) };
+        let slope_max: f32 = if gslope < 0. {
+            f32::min(-1., gslope)
+        } else {
+            f32::max(1., gslope)
+        };
         let spacing = grid.spacing * slope_max;
         for i in -total_horizontal..total_horizontal {
-            let guideline = Guideline::<()>::from_x_y_angle(viewx + grid.offset, gslope * viewx + spacing * (i as f32).floor() + grid.offset, Float(angle));
-            let ppath = draw_guideline_impl(viewport, canvas, &guideline, Some(GRID_STROKE), GRID_THICKNESS);
+            let guideline = Guideline::<()>::from_x_y_angle(
+                viewx + grid.offset,
+                gslope * viewx + spacing * (i as f32).floor() + grid.offset,
+                Float(angle),
+            );
+            let ppath = draw_guideline_impl(viewport, canvas, &guideline, Some(GRID_STROKE));
             path.add_path(&ppath, (0., 0.), None);
         }
     }

@@ -18,7 +18,6 @@ pub(crate) fn draw_guideline_impl<PD: glifparser::PointData>(
     canvas: &mut Canvas,
     guideline: &Guideline<PD>,
     color: Option<u32>,
-    width: f32,
 ) -> Path {
     let factor = viewport.factor;
     let mut sk_c_bounds = canvas.local_clip_bounds().unwrap();
@@ -32,14 +31,27 @@ pub(crate) fn draw_guideline_impl<PD: glifparser::PointData>(
 
     // flo_curves calls lines just tuples of its Coord2's. In certain functions these are
     // considered infinite lines, not line segments
-    let top_line = (flo::geo::Coord2::from((window_rect.left(), window_rect.top())), flo::geo::Coord2::from((window_rect.right(), window_rect.top())));
-    let bottom_line = (flo::geo::Coord2::from((window_rect.left(), window_rect.bottom())), flo::geo::Coord2::from((window_rect.right(), window_rect.bottom())));
-    let left_line = (flo::geo::Coord2::from((window_rect.left(), window_rect.top())), flo::geo::Coord2::from((window_rect.left(), window_rect.bottom())));
-    let right_line = (flo::geo::Coord2::from((window_rect.right(), window_rect.top())), flo::geo::Coord2::from((window_rect.right(), window_rect.bottom())));
+    let top_line = (
+        flo::geo::Coord2::from((window_rect.left(), window_rect.top())),
+        flo::geo::Coord2::from((window_rect.right(), window_rect.top())),
+    );
+    let bottom_line = (
+        flo::geo::Coord2::from((window_rect.left(), window_rect.bottom())),
+        flo::geo::Coord2::from((window_rect.right(), window_rect.bottom())),
+    );
+    let left_line = (
+        flo::geo::Coord2::from((window_rect.left(), window_rect.top())),
+        flo::geo::Coord2::from((window_rect.left(), window_rect.bottom())),
+    );
+    let right_line = (
+        flo::geo::Coord2::from((window_rect.right(), window_rect.top())),
+        flo::geo::Coord2::from((window_rect.right(), window_rect.bottom())),
+    );
 
     // flo_curves-style line for current guideline
     let guideline_at = flo::geo::Coord2::from((calc_x(guideline.at.x), calc_y(guideline.at.y)));
-    let guideline_ext = flo::geo::Coord2::from((guideline_at.0 + angle_vec.x, guideline_at.1 + angle_vec.y));
+    let guideline_ext =
+        flo::geo::Coord2::from((guideline_at.0 + angle_vec.x, guideline_at.1 + angle_vec.y));
     let guideline_as_line = (guideline_at, guideline_ext);
 
     // flo_curves somewhat bizarrely calls maths infinite lines `rays` and maths line segments
@@ -51,7 +63,12 @@ pub(crate) fn draw_guideline_impl<PD: glifparser::PointData>(
     let intersect_right = flo::line::line_intersects_ray(&right_line, &guideline_as_line);
 
     let mut intersections = vec![];
-    for intersection in [intersect_bottom, intersect_top, intersect_right, intersect_left] {
+    for intersection in [
+        intersect_bottom,
+        intersect_top,
+        intersect_right,
+        intersect_left,
+    ] {
         if let Some(rir) = intersection {
             intersections.push(rir);
         }
@@ -60,11 +77,18 @@ pub(crate) fn draw_guideline_impl<PD: glifparser::PointData>(
     // when guideline is on screen
     let (at2, at3) = if intersections.len() >= 2 {
         (
-            GuidelinePoint { x: intersections[0].0 as f32, y: intersections[0].1 as f32 },
-            GuidelinePoint { x: intersections[1].0 as f32, y: intersections[1].1 as f32 }
+            GuidelinePoint {
+                x: intersections[0].0 as f32,
+                y: intersections[0].1 as f32,
+            },
+            GuidelinePoint {
+                x: intersections[1].0 as f32,
+                y: intersections[1].1 as f32,
+            },
         )
-    } else { // when it's not
-        return Path::new()
+    } else {
+        // when it's not
+        return Path::new();
     };
 
     let mut path = Path::new();
@@ -75,11 +99,12 @@ pub(crate) fn draw_guideline_impl<PD: glifparser::PointData>(
         // Our bottom is their top because we're -1 y flipped compared (only matters for baselines)
         let vcenter = if intersect_bottom.is_some() {
             string::VerticalAlignment::Top
-        } else { // we only want this to trigger if not at top on purpose
+        } else {
+            // we only want this to trigger if not at top on purpose
             string::VerticalAlignment::Bottom
         };
         // This implements the sliding guideline labels along 0° angled guidelines
-        let alignment = if angle == 0. && -origin.x <= window_rect.width()  {
+        let alignment = if angle == 0. && -origin.x <= window_rect.width() {
             let origin_offset = 2.5; // offset from origin of label
             if origin.x >= 0. {
                 at.x = origin.x + origin_offset;
@@ -93,7 +118,12 @@ pub(crate) fn draw_guideline_impl<PD: glifparser::PointData>(
             at.x -= 5. * (1. / factor);
             string::Alignment::Right
         };
-        UiString::with_colors(name, color.unwrap_or(GUIDELINE_STROKE), None).autosized(string::AutoSizeMode::OnlySmaller).padding(1.).alignment(alignment).vcenter(vcenter).draw(&viewport, at.into(), canvas);
+        UiString::with_colors(name, color.unwrap_or(GUIDELINE_STROKE), None)
+            .autosized(string::AutoSizeMode::OnlySmaller)
+            .padding(1.)
+            .alignment(alignment)
+            .vcenter(vcenter)
+            .draw(&viewport, at.into(), canvas);
     }
     path
 }
@@ -104,7 +134,7 @@ pub fn draw_guideline<PD: glifparser::PointData>(
     guideline: &Guideline<PD>,
     color: Option<u32>,
 ) {
-    let path = draw_guideline_impl(viewport, canvas, guideline, color, GUIDELINE_THICKNESS);
+    let path = draw_guideline_impl(viewport, canvas, guideline, color);
     let mut paint = Paint::default();
     paint.set_anti_alias(true);
     let color = color.unwrap_or(GUIDELINE_STROKE);
