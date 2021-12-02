@@ -15,3 +15,8 @@ font-kit = "0.10"
 derive_more = "0.99"
 enum-unitary = "0.4.3"
 enum-iterator = "0.7.0"
+
+# Maths helpers
+kurbo = "0.8"
+flo_curves = "0.6"
+num-traits = "0.2"

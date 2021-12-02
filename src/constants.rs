@@ -47,6 +47,7 @@ pub static GUIDELINE_STROKE: u32 = 0xff_7d7d7d;
 pub static LBEARING_STROKE: u32 = 0xff_000000;
 pub static RBEARING_STROKE: u32 = LBEARING_STROKE;
 pub static BASELINE_STROKE: u32 = LBEARING_STROKE;
+pub static GRID_STROKE: u32 = 0x99_7d7d7d;
 
 pub static UFO_GUIDELINE_STROKE: u32 = 0xaa_7d0000;
 
