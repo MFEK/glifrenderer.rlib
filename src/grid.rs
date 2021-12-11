@@ -81,8 +81,7 @@ pub fn draw(canvas: &mut Canvas, grid: &Grid, viewport: &Viewport) {
             grid.offset,
             Float(90.),
         );
-        let ppath = draw_guideline_impl(viewport, canvas, &guideline, Some(GRID_STROKE));
-        path.add_path(&ppath, (0., 0.), None);
+        draw_guideline_impl(viewport, canvas, &guideline, Some(GRID_STROKE), &mut path);
     }
 
     // Draw horizontal guidelines (based on viewport location)
@@ -93,8 +92,7 @@ pub fn draw(canvas: &mut Canvas, grid: &Grid, viewport: &Viewport) {
             (i as f32).floor() + grid.offset,
             Float(0.),
         );
-        let ppath = draw_guideline_impl(viewport, canvas, &guideline, Some(GRID_STROKE));
-        path.add_path(&ppath, (0., 0.), None);
+        draw_guideline_impl(viewport, canvas, &guideline, Some(GRID_STROKE), &mut path);
     }
 
     let total_horizontal =
@@ -117,8 +115,7 @@ pub fn draw(canvas: &mut Canvas, grid: &Grid, viewport: &Viewport) {
                 gslope * viewx + spacing * (i as f32).floor() + grid.offset,
                 Float(angle),
             );
-            let ppath = draw_guideline_impl(viewport, canvas, &guideline, Some(GRID_STROKE));
-            path.add_path(&ppath, (0., 0.), None);
+            draw_guideline_impl(viewport, canvas, &guideline, Some(GRID_STROKE), &mut path);
         }
     }
 

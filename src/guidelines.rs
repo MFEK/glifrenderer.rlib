@@ -18,7 +18,8 @@ pub(crate) fn draw_guideline_impl<PD: glifparser::PointData>(
     canvas: &mut Canvas,
     guideline: &Guideline<PD>,
     color: Option<u32>,
-) -> Path {
+    path: &mut Path,
+) {
     let factor = viewport.factor;
     let mut sk_c_bounds = canvas.local_clip_bounds().unwrap();
     sk_c_bounds.flip_if_required();
@@ -88,10 +89,9 @@ pub(crate) fn draw_guideline_impl<PD: glifparser::PointData>(
         )
     } else {
         // when it's not
-        return Path::new();
+        return
     };
 
-    let mut path = Path::new();
     path.move_to(((at2.x), (at2.y)));
     path.line_to(((at3.x), (at3.y)));
     if let Some(ref name) = guideline.name {
@@ -125,7 +125,6 @@ pub(crate) fn draw_guideline_impl<PD: glifparser::PointData>(
             .vcenter(vcenter)
             .draw(&viewport, at.into(), canvas);
     }
-    path
 }
 
 pub fn draw_guideline<PD: glifparser::PointData>(
@@ -134,7 +133,8 @@ pub fn draw_guideline<PD: glifparser::PointData>(
     guideline: &Guideline<PD>,
     color: Option<u32>,
 ) {
-    let path = draw_guideline_impl(viewport, canvas, guideline, color);
+    let mut path = Path::new();
+    draw_guideline_impl(viewport, canvas, guideline, color, &mut path);
     let mut paint = Paint::default();
     paint.set_anti_alias(true);
     let color = color.unwrap_or(GUIDELINE_STROKE);

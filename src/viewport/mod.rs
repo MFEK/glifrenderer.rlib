@@ -23,7 +23,7 @@ pub struct Viewport {
 impl Default for Viewport {
     fn default() -> Self {
         Viewport {
-            winsize: (0., 0.),
+            winsize: (800., 800.),
             factor: 1.,
             offset: (0., 0.),
             //dpi: 1.,
