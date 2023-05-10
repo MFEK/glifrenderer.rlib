@@ -5,7 +5,30 @@ use crate::{string::UiString, toggles::PreviewMode};
 
 use glifparser::outline::skia::ToSkiaPaths;
 use glifparser::{glif::LayerOperation, MFEKGlif, PointData};
-use skia_safe::{Path, Canvas, Color4f, Paint, PaintStyle, PathOp, Rect};
+use skia_safe::{Path, Canvas, Color4f, Paint, PaintStyle, PathOp, Rect, Color};
+
+pub struct Style {
+    outline_fill: Color,
+    paper_fill: Color,
+}
+
+impl Default for Style {
+    fn default() -> Self {
+        Self { 
+            outline_fill: OUTLINE_FILL.into(),
+            paper_fill: PAPER_FILL.into(),
+        }
+    }
+}
+
+impl Style {
+    pub fn new(outline_fill: Color, paper_fill: Color) -> Self {
+        Self {
+            outline_fill,
+            paper_fill
+        }
+    }
+}
 
 pub fn draw_components<PD: PointData>(
     glyph: &MFEKGlif<PD>,
@@ -42,6 +65,7 @@ pub fn draw_layer_group(
     open_path: &Path,
     closed_path: &Path,
     outline_path: &Path,
+    style: &Style,
 ) {
     let mut paint = Paint::default();
     paint.set_anti_alias(true);
@@ -52,14 +76,14 @@ pub fn draw_layer_group(
         paint.set_style(PaintStyle::Stroke);
     } else {
         paint.set_style(PaintStyle::StrokeAndFill);
-        paint.set_color(OUTLINE_FILL);
+        paint.set_color(style.outline_fill);
         paint.set_stroke_width(OUTLINE_STROKE_THICKNESS * (1. / viewport.factor));
     }
 
     if let Some(color) = root_color {
         paint.set_color4f(color, None);
     } else if viewport.preview_mode == PreviewMode::Paper {
-        paint.set_color(PAPER_FILL);
+        paint.set_color(style.paper_fill);
     }
 
     canvas.draw_path(&closed_path, &paint);
@@ -71,7 +95,7 @@ pub fn draw_layer_group(
         paint.set_style(PaintStyle::Stroke);
 
         if root_color.is_none() {
-            paint.set_color(OUTLINE_STROKE);
+            paint.set_color(style.outline_fill);
         }
         canvas.draw_path(&closed_path, &paint);
         canvas.draw_path(&outline_path, &paint);
@@ -81,7 +105,8 @@ pub fn draw_layer_group(
 //TODO: pub use crate::events::vws;
 // Before we draw we've got to build a flattened path out of the glyph by resolving
 // each layer operation in turn.
-pub fn draw<PD: PointData>(canvas: &mut Canvas, glyph: &MFEKGlif<PD>, viewport: &Viewport) {
+pub fn draw<PD: PointData>(canvas: &mut Canvas, glyph: &MFEKGlif<PD>, viewport: &Viewport, style: Option<Style>) {
+    let style = if style.is_none() { Style::default() } else { style.unwrap() };
     let mut total_open_path = Path::new();
     let mut total_closed_path = Path::new();
     let mut total_outline_path = Path::new();
@@ -109,6 +134,7 @@ pub fn draw<PD: PointData>(canvas: &mut Canvas, glyph: &MFEKGlif<PD>, viewport: 
                 &total_open_path,
                 &total_closed_path,
                 &total_outline_path,
+                &style
             );
 
             total_open_path = Path::new();
@@ -197,5 +223,6 @@ pub fn draw<PD: PointData>(canvas: &mut Canvas, glyph: &MFEKGlif<PD>, viewport: 
         &total_open_path,
         &total_closed_path,
         &total_outline_path,
+        &style
     );
 }
