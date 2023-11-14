@@ -12,7 +12,7 @@ glifparser = { git = "https://github.com/MFEK/glifparser.rlib", branch = "master
 MFEKmath = { git = "https://github.com/MFEK/math.rlib", branch = "main", features=["skia"]}
 #MFEKmath = { path = "../math.rlib", features=["skia"] } # for development
 
-skia-safe = "0.53.0"
+skia-safe = ">0.53.0"
 log = "0.4"
 font-kit = "0.10"
 derive_more = "0.99"
