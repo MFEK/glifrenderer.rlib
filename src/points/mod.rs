@@ -164,6 +164,25 @@ pub fn draw_square_point(
 }
 
 
+pub fn draw_cross_point(
+    at: (f32, f32),
+    radius: f32,
+    stroke: Color,
+    alpha: f32,
+    canvas: &Canvas,
+    factor: f32,
+) {
+    let mut paint = Paint::default();
+    paint.set_stroke_width(DIRECTION_STROKE_THICKNESS * (1. / factor));
+    paint.set_anti_alias(true);
+
+    paint.set_style(PaintStyle::Stroke);
+    paint.set_color(stroke);
+    paint.set_alpha_f(alpha);
+    canvas.draw_line((at.0 - radius, at.1 - radius), (at.0 + radius, at.1 + radius), &paint);
+    canvas.draw_line((at.0 + radius, at.1 - radius), (at.0 - radius, at.1 + radius), &paint);    
+}
+
 fn get_fill_and_stroke(kind: UIPointType, selected: bool) -> (Color, Color) {
     let (fill, stroke) = if selected {
         match kind {
@@ -227,7 +246,13 @@ pub fn draw_point<PD: GPPointData>(
     let round = point.get_handle_position(WhichHandle::A).is_some() && point.get_handle_position(WhichHandle::B).is_some();
     let (stroke, fill) = get_point_stroke_fill(round, selected);
     if round {
-        draw_round_point(at, radius, fill, 1., canvas, factor);
+        // Hack to differentiate between normal and smooth points. 
+        // TODO: Change to an enum??
+        if point.get_smooth().is_some_and(|s| s == true) {
+            draw_round_point(at, radius, fill, 1., canvas, factor);
+        } else {
+            draw_cross_point(at, radius, fill, 1., canvas, factor);
+        }
     } else {
         draw_square_point(at, radius * 1.25, fill, stroke, canvas, factor);
     }
